@@ -13,7 +13,6 @@ import ParkingLot.strategy.pricing.PricingStrategy;
 public class FeeCalculationContext {
     private PricingStrategy strategy;
 
-
     public FeeCalculationContext() {
     }
 

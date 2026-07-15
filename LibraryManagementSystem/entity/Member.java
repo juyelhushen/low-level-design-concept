@@ -16,7 +16,10 @@ public final class Member extends Person {
     private static final int MAX_BOOKS_STANDARD = 5;
     private static final int MAX_BOOKS_PREMIUM = 10;
 
-    public Member(String personId, String name, String phone, MemberType memberType, LocalDate membershipExpiryDate) {
+    public Member(String personId,
+                  String name, String phone,
+                  MemberType memberType,
+                  LocalDate membershipExpiryDate) {
         super(personId, name, phone);
         this.memberType = memberType;
         this.membershipExpiryDate = membershipExpiryDate;
