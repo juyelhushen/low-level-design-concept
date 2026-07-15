@@ -10,6 +10,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Book {
+
     private final String bookId;
     private final String isbn;
     private final String title;
