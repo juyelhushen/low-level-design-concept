@@ -1,0 +1,88 @@
+Clarifying Questions
+
+"Before designing, let me clarify a few things."
+
+Is the cart per-session or persistent across logins?
+Can the same product appear multiple times, or just update quantity?
+What discount types — percentage, flat, category-specific, BOGO?
+Do we need cart item add-ons like gift wrap, extended warranty?
+Do we need order cancellation and returns?
+What happens if stock runs out between add-to-cart and checkout?
+
+
+Assumptions:
+
+Cart is persistent, tied to a user account
+Same product → update quantity, not duplicate line items
+Discounts via coupon codes: PERCENTAGE, FLAT, CATEGORY-BASED
+Cart item add-ons via Decorator pattern
+Inventory reserved at checkout, released if payment fails
+Order cancellation supported (before SHIPPED)
+
+
+1. Functional & Non-Functional Requirements
+
+Functional
+
+Browse and search products by category
+Add / remove / update quantity in cart
+Apply add-ons to cart items (gift wrap, warranty)
+Apply coupon code at checkout
+Checkout → inventory reservation → payment → order confirmed
+View order history and track order status
+Cancel order (before shipped), return order (after delivered)
+
+
+Non-Functional
+
+No overselling: two users buying the last unit simultaneously — exactly one succeeds
+Price lock: product price captured at checkout time, not at add-to-cart time
+Undo support: user can undo the last cart operation
+Extensibility: new add-on types, discount types, order states addable without touching existing logic
+
+
+2. Core Entities
+Product          → catalog item with stock (AtomicInteger for thread safety)
+Cart             → user's active basket, holds CartItemComponents
+CartItemComponent→ interface — Decorator pattern root
+BaseCartItem     → concrete component (product + quantity)
+GiftWrapDecorator        → wraps CartItemComponent, adds ₹50
+ExtendedWarrantyDecorator→ wraps CartItemComponent, adds ₹500
+Coupon           → discount code with type, value, validity
+Order            → snapshot of cart at checkout (immutable after placed)
+OrderItem        → snapshot of one line item (price locked at checkout)
+Payment          → linked to an order
+Address          → record (Java 21)
+
+
+3. API Design
+Method	   Endpoint	                                         Purpose
+---------------------------------------------------------------------
+GET	       /api/v1/products?category=&q=	                Browse/search
+GET	       /api/v1/cart/{userId}	                        View cart
+POST       /api/v1/cart/{userId}/items	                    Add item (+ add-ons)
+PUT	       /api/v1/cart/{userId}/items/{productId}	        Update quantity
+DELETE     /api/v1/cart/{userId}/items/{productId}	        Remove item
+DELETE     /api/v1/cart/{userId}/undo	                    Undo last operation
+POST       /api/v1/cart/{userId}/checkout	                {couponCode, paymentMode, address} → Order
+GET	       /api/v1/orders/{userId}	                        Order history
+PUT	       /api/v1/orders/{orderId}/cancel	                Cancel order
+
+
+4. Design Patterns — what, where, why
+Pattern         	Where	                                   What's new
+===============================================================================================
+Decorator	  CartItemComponent hierarchy	       ✅ NEW — stack add-ons (gift wrap + warranty) without a boolean explosion on CartItem
+Command	      CartCommand + CartCommandInvoker	   ✅ NEW — every cart mutation is an undoable command object; history stack enables undo
+Facade	      CheckoutService	                   ✅ NEW — hides 6-step checkout orchestration (validate → reserve → discount → order → pay → notify) behind one method
+Strategy	  DiscountStrategy	                   Same pattern, different axis — coupon-based discount calculation
+State	      OrderState	                       Same pattern as Booking in hotel — PLACED → CONFIRMED → SHIPPED → DELIVERED → CANCELLED
+Observer	  OrderObserver	                       Same — email + SMS on order placed/shipped/delivered
+Builder       Order	                               Snapshot has many fields — required (items, total, address) and optional (coupon, notes)
+Factory       DiscountStrategyFactory	           Exhaustive switch on CouponType — same as all previous systems
+Singleton	  ShoppingApp	                       One product catalog + order ledger
+Repository	  All four repos	                   Same — interface over ConcurrentHashMap
+
+
+5. HLD
+
